@@ -3,7 +3,7 @@ const path = require('path');
 
 const BATCH_SIZE = 50;
 const GRAPHQL_URL = 'https://api.github.com/graphql';
-const SEARCH_URL = 'https://api.github.com/search/users?q=location:"Sri+Lanka"+type:user&sort=followers&order=desc&per_page=100';
+const SEARCH_URL = 'https://api.github.com/search/users?q=location:"Sri+Lanka"+type:user&sort=followers&order=desc&per_page=1000';
 
 function buildGraphQLQuery(usernames) {
   const fields = usernames.map((username, i) =>
