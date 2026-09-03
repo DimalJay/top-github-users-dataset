@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const BATCH_SIZE = 50;
+const SEARCH_PER_PAGE = 100;
+const TOTAL_USERS = 1000;
 const GRAPHQL_URL = 'https://api.github.com/graphql';
-const SEARCH_URL = 'https://api.github.com/search/users?q=location:"Sri+Lanka"+type:user&sort=followers&order=desc&per_page=1000';
 
 function buildGraphQLQuery(usernames) {
   const fields = usernames.map((username, i) =>
@@ -16,32 +17,107 @@ function buildGraphQLQuery(usernames) {
   return `{ ${fields} }`;
 }
 
+async function fetchSearchPage(page, token) {
+  const url = `https://api.github.com/search/users?q=location:"Sri+Lanka"+type:user&sort=followers&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
+
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Node-Fetch-Script',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.status === 403 || response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After') || 60;
+      console.log(`    Rate limited. Waiting ${retryAfter}s (attempt ${attempt}/5)...`);
+      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Search API error: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+  throw new Error('Search API rate limit exceeded after retries.');
+}
+
+async function fetchAllSearchResults(token) {
+  const allItems = [];
+  let page = 1;
+
+  console.log('Fetching user list from search API (paginated)...');
+
+  while (allItems.length < TOTAL_USERS) {
+    console.log(`  Fetching search page ${page}...`);
+    const data = await fetchSearchPage(page, token);
+    const items = data.items || [];
+
+    if (items.length === 0) break;
+    allItems.push(...items);
+
+    if (allItems.length >= data.total_count) break;
+    page++;
+
+    if (page > 10) break;
+  }
+
+  // Trim to requested total
+  if (allItems.length > TOTAL_USERS) {
+    allItems.length = TOTAL_USERS;
+  }
+
+  return allItems;
+}
+
 async function fetchUserData(usernames, token) {
   const userData = {};
   for (let i = 0; i < usernames.length; i += BATCH_SIZE) {
     const batch = usernames.slice(i, i + BATCH_SIZE);
-    const query = buildGraphQLQuery(batch);
 
-    const response = await fetch(GRAPHQL_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ query })
-    });
+    let result;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const query = buildGraphQLQuery(batch);
+      const response = await fetch(GRAPHQL_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query })
+      });
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`GraphQL API error: ${response.status} ${err}`);
+      if (response.status === 403 || response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || 60;
+        console.log(`    Rate limited. Waiting ${retryAfter}s (attempt ${attempt}/5)...`);
+        await new Promise(r => setTimeout(r, retryAfter * 1000));
+        continue;
+      }
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`GraphQL API error: ${response.status} ${err}`);
+      }
+
+      result = await response.json();
+      break;
     }
 
-    const result = await response.json();
-    if (result.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    if (!result) {
+      throw new Error('GraphQL rate limit exceeded after retries.');
     }
 
-    for (const key of Object.keys(result.data)) {
+    if (result.errors && result.errors.some(e => e.type === 'RATE_LIMITED')) {
+      console.log('    GraphQL rate limit hit. Waiting 60s...');
+      await new Promise(r => setTimeout(r, 60000));
+      i -= BATCH_SIZE;
+      continue;
+    }
+
+    for (const key of Object.keys(result.data || {})) {
       const user = result.data[key];
       if (user) {
         userData[user.login.toLowerCase()] = {
@@ -65,23 +141,7 @@ async function updateTopFollowers() {
     process.exit(1);
   }
 
-  console.log('Fetching user list from search API...');
-
-  const searchResponse = await fetch(SEARCH_URL, {
-    headers: {
-      'Accept': 'application/vnd.github.v3+json',
-      'User-Agent': 'Node-Fetch-Script',
-      'Authorization': `Bearer ${GITHUB_TOKEN}`
-    }
-  });
-
-  if (!searchResponse.ok) {
-    throw new Error(`Search API error: ${searchResponse.status} ${searchResponse.statusText}`);
-  }
-
-  const searchData = await searchResponse.json();
-  const items = searchData.items || [];
-
+  const items = await fetchAllSearchResults(GITHUB_TOKEN);
   console.log(`Found ${items.length} users. Fetching accurate followers counts via GraphQL...`);
 
   const usernames = items.map(u => u.login);
