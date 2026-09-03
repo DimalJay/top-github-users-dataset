@@ -110,7 +110,10 @@ async function fetchUserData(usernames, token, progressFile) {
         for (const entry of existing) {
           userData[entry.username.toLowerCase()] = {
             name: entry.name ?? null,
-            followers_count: entry.followers_count ?? null
+            followers_count: entry.followers_count ?? null,
+            bio: entry.bio ?? null,
+            company: entry.company ?? null,
+            location: entry.location ?? null
           };
         }
         console.log(`  Resuming from existing progress (${Object.keys(userData).length} users already fetched).`);
@@ -173,12 +176,15 @@ async function fetchUserData(usernames, token, progressFile) {
 
     userData[username.toLowerCase()] = {
       name: data ? (data.name || null) : null,
-      followers_count: data ? (data.followers ?? null) : null
+      followers_count: data ? (data.followers ?? null) : null,
+      bio: data ? (data.bio || null) : null,
+      company: data ? (data.company || null) : null,
+      location: data ? (data.location || null) : null
     };
 
     fetched++;
     fs.writeFileSync(progressFile, JSON.stringify(
-      Object.entries(userData).map(([u, e]) => ({ username: u, name: e.name, followers_count: e.followers_count })),
+      Object.entries(userData).map(([u, e]) => ({ username: u, name: e.name, followers_count: e.followers_count, bio: e.bio, company: e.company, location: e.location })),
       null, 2
     ));
 
@@ -217,7 +223,10 @@ async function updateTopFollowers() {
       avatar_url: user.avatar_url,
       profile_url: user.html_url,
       id: user.id,
-      followers_count: data.followers_count ?? null
+      followers_count: data.followers_count ?? null,
+      bio: data.bio ?? null,
+      company: data.company ?? null,
+      location: data.location ?? null
     };
   });
 

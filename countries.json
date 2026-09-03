@@ -1,6 +1,122 @@
 {
-  "LK": { "location": "Sri Lanka", "maxUsers": 500 },
-  "US": { "location": "United States", "maxUsers": 500 },
-  "UK": { "location": "United Kingdom", "maxUsers": 500 },
-  "IN": { "location": "India", "maxUsers": 500 }
+    "LK": {
+        "location": "Sri Lanka",
+        "maxUsers": 100
+    },
+    "US": {
+        "location": "United States",
+        "maxUsers": 100
+    },
+    "UK": {
+        "location": "United Kingdom",
+        "maxUsers": 100
+    },
+    "IN": {
+        "location": "India",
+        "maxUsers": 100
+    },
+    "DE": {
+        "location": "Germany",
+        "maxUsers": 100
+    },
+    "BR": {
+        "location": "Brazil",
+        "maxUsers": 100
+    },
+    "CA": {
+        "location": "Canada",
+        "maxUsers": 100
+    },
+    "FR": {
+        "location": "France",
+        "maxUsers": 100
+    },
+    "AU": {
+        "location": "Australia",
+        "maxUsers": 100
+    },
+    "ID": {
+        "location": "Indonesia",
+        "maxUsers": 100
+    },
+    "NL": {
+        "location": "Netherlands",
+        "maxUsers": 100
+    },
+    "ES": {
+        "location": "Spain",
+        "maxUsers": 100
+    },
+    "JP": {
+        "location": "Japan",
+        "maxUsers": 100
+    },
+    "CN": {
+        "location": "China",
+        "maxUsers": 100
+    },
+    "RU": {
+        "location": "Russia",
+        "maxUsers": 100
+    },
+    "IT": {
+        "location": "Italy",
+        "maxUsers": 100
+    },
+    "PL": {
+        "location": "Poland",
+        "maxUsers": 100
+    },
+    "TR": {
+        "location": "Turkey",
+        "maxUsers": 100
+    },
+    "KR": {
+        "location": "South Korea",
+        "maxUsers": 100
+    },
+    "MX": {
+        "location": "Mexico",
+        "maxUsers": 100
+    },
+    "SE": {
+        "location": "Sweden",
+        "maxUsers": 100
+    },
+    "ZA": {
+        "location": "South Africa",
+        "maxUsers": 100
+    },
+    "UA": {
+        "location": "Ukraine",
+        "maxUsers": 100
+    },
+    "VN": {
+        "location": "Vietnam",
+        "maxUsers": 100
+    },
+    "TW": {
+        "location": "Taiwan",
+        "maxUsers": 100
+    },
+    "NG": {
+        "location": "Nigeria",
+        "maxUsers": 100
+    },
+    "BD": {
+        "location": "Bangladesh",
+        "maxUsers": 100
+    },
+    "PK": {
+        "location": "Pakistan",
+        "maxUsers": 100
+    },
+    "IR": {
+        "location": "Iran",
+        "maxUsers": 100
+    },
+    "TH": {
+        "location": "Thailand",
+        "maxUsers": 100
+    }
 }
