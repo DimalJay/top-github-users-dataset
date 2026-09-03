@@ -1,122 +1,152 @@
 {
     "LK": {
         "location": "Sri Lanka",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "US": {
         "location": "United States",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "UK": {
         "location": "United Kingdom",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "IN": {
         "location": "India",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "DE": {
         "location": "Germany",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "BR": {
         "location": "Brazil",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "CA": {
         "location": "Canada",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "FR": {
         "location": "France",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "AU": {
         "location": "Australia",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "ID": {
         "location": "Indonesia",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "NL": {
         "location": "Netherlands",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "ES": {
         "location": "Spain",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "JP": {
         "location": "Japan",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "CN": {
         "location": "China",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "RU": {
         "location": "Russia",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "IT": {
         "location": "Italy",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "PL": {
         "location": "Poland",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "TR": {
         "location": "Turkey",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "KR": {
         "location": "South Korea",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "MX": {
         "location": "Mexico",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "SE": {
         "location": "Sweden",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "ZA": {
         "location": "South Africa",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "UA": {
         "location": "Ukraine",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "VN": {
         "location": "Vietnam",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "TW": {
         "location": "Taiwan",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "NG": {
         "location": "Nigeria",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "BD": {
         "location": "Bangladesh",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "PK": {
         "location": "Pakistan",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "IR": {
         "location": "Iran",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     },
     "TH": {
         "location": "Thailand",
-        "maxUsers": 100
+        "maxUsers": 500,
+        "poolMultiplier": 3
     }
 }

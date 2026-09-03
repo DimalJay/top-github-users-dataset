@@ -37,7 +37,7 @@ jobs:
           set -e
           for country in LK US UK IN DE BR; do
             echo "=== Processing $country ==="
-            node scripts/fetch_users.js "$country"
+            node scripts/fetch_contributors.js "$country"
           done
       - name: Commit and Push
         run: |
@@ -45,8 +45,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            git commit -m "update group 1 top followers data [skip ci]" || true
+            git commit -m "update group 1 top contributors data [skip ci]" || true
           fi
+          git pull --rebase origin main || true
           git push
 
   group-2:
@@ -66,7 +67,7 @@ jobs:
           set -e
           for country in CA FR AU ID NL ES; do
             echo "=== Processing $country ==="
-            node scripts/fetch_users.js "$country"
+            node scripts/fetch_contributors.js "$country"
           done
       - name: Commit and Push
         run: |
@@ -74,8 +75,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            git commit -m "update group 2 top followers data [skip ci]" || true
+            git commit -m "update group 2 top contributors data [skip ci]" || true
           fi
+          git pull --rebase origin main || true
           git push
 
   group-3:
@@ -95,7 +97,7 @@ jobs:
           set -e
           for country in JP CN RU IT PL TR; do
             echo "=== Processing $country ==="
-            node scripts/fetch_users.js "$country"
+            node scripts/fetch_contributors.js "$country"
           done
       - name: Commit and Push
         run: |
@@ -103,8 +105,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            git commit -m "update group 3 top followers data [skip ci]" || true
+            git commit -m "update group 3 top contributors data [skip ci]" || true
           fi
+          git pull --rebase origin main || true
           git push
 
   group-4:
@@ -124,7 +127,7 @@ jobs:
           set -e
           for country in KR MX SE ZA UA VN; do
             echo "=== Processing $country ==="
-            node scripts/fetch_users.js "$country"
+            node scripts/fetch_contributors.js "$country"
           done
       - name: Commit and Push
         run: |
@@ -132,8 +135,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            git commit -m "update group 4 top followers data [skip ci]" || true
+            git commit -m "update group 4 top contributors data [skip ci]" || true
           fi
+          git pull --rebase origin main || true
           git push
 
   group-5:
@@ -153,7 +157,7 @@ jobs:
           set -e
           for country in TW NG BD PK IR TH; do
             echo "=== Processing $country ==="
-            node scripts/fetch_users.js "$country"
+            node scripts/fetch_contributors.js "$country"
           done
       - name: Commit and Push
         run: |
@@ -161,6 +165,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            git commit -m "update group 5 top followers data [skip ci]" || true
+            git commit -m "update group 5 top contributors data [skip ci]" || true
           fi
+          git pull --rebase origin main || true
           git push
