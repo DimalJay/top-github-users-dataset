@@ -210,7 +210,12 @@ async function updateTopFollowers() {
   const items = await fetchAllSearchResults(GITHUB_TOKEN);
   console.log(`Found ${items.length} users.`);
 
-  const progressFile = path.join(__dirname, '..', 'data', COUNTRY_CODE, '_progress.json');
+  const targetDir = path.join(__dirname, '..', 'data', COUNTRY_CODE);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const progressFile = path.join(targetDir, '_progress.json');
   const usernames = items.map(u => u.login);
   const userData = await fetchUserData(usernames, GITHUB_TOKEN, progressFile);
 
@@ -236,12 +241,7 @@ async function updateTopFollowers() {
     users: formattedUsers
   };
 
-  const targetDir = path.join(__dirname, '..', 'data', COUNTRY_CODE);
   const targetFilePath = path.join(targetDir, 'top_users_followers.json');
-
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
 
   fs.writeFileSync(targetFilePath, JSON.stringify(outputData, null, 2));
   if (fs.existsSync(progressFile)) {
