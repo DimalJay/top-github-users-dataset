@@ -83,6 +83,14 @@ async function fetchSearchPage(partition, page, token) {
       return null;
     }
 
+    // 5xx (e.g. 502 Bad Gateway) is transient — retry with backoff instead of aborting.
+    if (response.status >= 500 && response.status < 600) {
+      const backoff = Math.min(30, 5 * attempt) * 1000;
+      console.log(`    Transient server error ${response.status}. Retrying in ${backoff / 1000}s (attempt ${attempt}/5)...`);
+      await sleep(backoff);
+      continue;
+    }
+
     if (!response.ok) {
       throw new Error(`Search API error: ${response.status} ${response.statusText}`);
     }
@@ -193,6 +201,14 @@ async function fetchContributionsBatch(usernames, token) {
 
     if (response.status === 401 || response.status === 403 || response.status === 429) {
       await waitForRateLimitReset(response);
+      continue;
+    }
+
+    // 5xx (e.g. 502 Bad Gateway) is transient — retry with backoff instead of aborting.
+    if (response.status >= 500 && response.status < 600) {
+      const backoff = Math.min(30, 5 * attempt) * 1000;
+      console.log(`    Transient server error ${response.status}. Retrying in ${backoff / 1000}s (attempt ${attempt}/5)...`);
+      await sleep(backoff);
       continue;
     }
 
