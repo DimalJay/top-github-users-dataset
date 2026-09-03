@@ -34,7 +34,8 @@ function buildGraphQLQuery(usernames) {
 }
 
 async function fetchSearchPage(page, token) {
-  const url = `https://api.github.com/search/users?q=location:"${encodeURIComponent(LOCATION)}"+type:user&sort=followers&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
+  const locationFilter = LOCATION ? `location:"${encodeURIComponent(LOCATION)}"+` : '';
+  const url = `https://api.github.com/search/users?q=${locationFilter}type:user&sort=followers&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
 
   for (let attempt = 1; attempt <= 5; attempt++) {
     const response = await fetch(url, {
@@ -65,7 +66,7 @@ async function fetchAllSearchResults(token) {
   const allItems = [];
   let page = 1;
 
-  console.log(`Fetching user list for ${COUNTRY_CODE} (${LOCATION}) from search API (paginated)...`);
+  console.log(`Fetching user list for ${COUNTRY_CODE} (${LOCATION || 'Worldwide'}) from search API (paginated)...`);
 
   while (allItems.length < MAX_USERS) {
     console.log(`  Fetching search page ${page}...`);
