@@ -3,8 +3,24 @@ const path = require('path');
 
 const BATCH_SIZE = 50;
 const SEARCH_PER_PAGE = 100;
-const TOTAL_USERS = 500;
 const GRAPHQL_URL = 'https://api.github.com/graphql';
+
+const COUNTRIES = {
+  LK: { location: 'Sri Lanka', maxUsers: 500 },
+  US: { location: 'United States', maxUsers: 500 },
+  UK: { location: 'United Kingdom', maxUsers: 500 },
+  IN: { location: 'India', maxUsers: 500 }
+};
+
+const COUNTRY_CODE = (process.argv[2] || 'LK').toUpperCase();
+
+if (!COUNTRIES[COUNTRY_CODE]) {
+  console.error(`Error: Unknown country code '${COUNTRY_CODE}'. Valid codes: ${Object.keys(COUNTRIES).join(', ')}`);
+  process.exit(1);
+}
+
+const LOCATION = COUNTRIES[COUNTRY_CODE].location;
+const MAX_USERS = COUNTRIES[COUNTRY_CODE].maxUsers;
 
 function buildGraphQLQuery(usernames) {
   const fields = usernames.map((username, i) =>
@@ -14,11 +30,14 @@ function buildGraphQLQuery(usernames) {
       followers { totalCount }
     }`
   ).join('\n');
-  return `{ ${fields} }`;
+  return `{
+    rateLimit { cost remaining resetAt }
+    ${fields}
+  }`;
 }
 
 async function fetchSearchPage(page, token) {
-  const url = `https://api.github.com/search/users?q=location:"Sri+Lanka"+type:user&sort=followers&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
+  const url = `https://api.github.com/search/users?q=location:"${encodeURIComponent(LOCATION)}"+type:user&sort=followers&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
 
   for (let attempt = 1; attempt <= 5; attempt++) {
     const response = await fetch(url, {
@@ -49,9 +68,9 @@ async function fetchAllSearchResults(token) {
   const allItems = [];
   let page = 1;
 
-  console.log('Fetching user list from search API (paginated)...');
+  console.log(`Fetching user list for ${COUNTRY_CODE} (${LOCATION}) from search API (paginated)...`);
 
-  while (allItems.length < TOTAL_USERS) {
+  while (allItems.length < MAX_USERS) {
     console.log(`  Fetching search page ${page}...`);
     const data = await fetchSearchPage(page, token);
     const items = data.items || [];
@@ -62,12 +81,12 @@ async function fetchAllSearchResults(token) {
     if (allItems.length >= data.total_count) break;
     page++;
 
-    if (page > 10) break;
+    if (page > Math.ceil(MAX_USERS / SEARCH_PER_PAGE)) break;
   }
 
   // Trim to requested total
-  if (allItems.length > TOTAL_USERS) {
-    allItems.length = TOTAL_USERS;
+  if (allItems.length > MAX_USERS) {
+    allItems.length = MAX_USERS;
   }
 
   return allItems;
@@ -117,9 +136,22 @@ async function fetchUserData(usernames, token) {
       continue;
     }
 
+    // Monitor remaining quota
+    if (result.data && result.data.rateLimit) {
+      const { remaining, resetAt } = result.data.rateLimit;
+      const cooldownMs = Math.max(0, new Date(resetAt).getTime() - Date.now());
+      console.log(`    Remaining GraphQL points: ${remaining}`);
+      if (remaining < 500) {
+        console.log(`    Low quota (${remaining}). Waiting until reset ${resetAt} (${Math.round(cooldownMs / 1000)}s)...`);
+        await new Promise(r => setTimeout(r, cooldownMs + 5000));
+        i -= BATCH_SIZE;
+        continue;
+      }
+    }
+
     for (const key of Object.keys(result.data || {})) {
       const user = result.data[key];
-      if (user) {
+      if (user && user.login) {
         userData[user.login.toLowerCase()] = {
           name: user.name || null,
           followers_count: user.followers ? user.followers.totalCount : null
@@ -166,7 +198,7 @@ async function updateTopFollowers() {
     users: formattedUsers
   };
 
-  const targetDir = path.join(__dirname, '..', 'data', 'LK');
+  const targetDir = path.join(__dirname, '..', 'data', COUNTRY_CODE);
   const targetFilePath = path.join(targetDir, 'top_users_followers.json');
 
   if (!fs.existsSync(targetDir)) {
