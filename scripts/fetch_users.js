@@ -1,9 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const BATCH_SIZE = 50;
 const SEARCH_PER_PAGE = 100;
-const GRAPHQL_URL = 'https://api.github.com/graphql';
+const REST_DELAY_MS = 2000; // ~30 req/min, safe under the 5000/hr REST quota
+const REST_API = 'https://api.github.com/users';
 
 const COUNTRIES = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'countries.json'), 'utf-8')
@@ -19,18 +19,8 @@ if (!COUNTRIES[COUNTRY_CODE]) {
 const LOCATION = COUNTRIES[COUNTRY_CODE].location;
 const MAX_USERS = COUNTRIES[COUNTRY_CODE].maxUsers;
 
-function buildGraphQLQuery(usernames) {
-  const fields = usernames.map((username, i) =>
-    `_${i}: user(login: "${username}") {
-      login
-      name
-      followers { totalCount }
-    }`
-  ).join('\n');
-  return `{
-    rateLimit { cost remaining resetAt }
-    ${fields}
-  }`;
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
 }
 
 async function fetchSearchPage(page, token) {
@@ -49,7 +39,7 @@ async function fetchSearchPage(page, token) {
     if (response.status === 403 || response.status === 429) {
       const retryAfter = response.headers.get('Retry-After') || 60;
       console.log(`    Rate limited. Waiting ${retryAfter}s (attempt ${attempt}/5)...`);
-      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      await sleep(retryAfter * 1000);
       continue;
     }
 
@@ -82,7 +72,6 @@ async function fetchAllSearchResults(token) {
     if (page > Math.ceil(MAX_USERS / SEARCH_PER_PAGE)) break;
   }
 
-  // Trim to requested total
   if (allItems.length > MAX_USERS) {
     allItems.length = MAX_USERS;
   }
@@ -90,75 +79,88 @@ async function fetchAllSearchResults(token) {
   return allItems;
 }
 
-async function fetchUserData(usernames, token) {
+async function fetchUserData(usernames, token, progressFile) {
   const userData = {};
-  for (let i = 0; i < usernames.length; i += BATCH_SIZE) {
-    const batch = usernames.slice(i, i + BATCH_SIZE);
 
-    let result;
+  if (fs.existsSync(progressFile)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(progressFile, 'utf-8'));
+      if (existing && Array.isArray(existing)) {
+        for (const entry of existing) {
+          userData[entry.username.toLowerCase()] = {
+            name: entry.name ?? null,
+            followers_count: entry.followers_count ?? null
+          };
+        }
+        console.log(`  Resuming from existing progress (${Object.keys(userData).length} users already fetched).`);
+      }
+    } catch (e) {
+      console.log('  Could not load progress file, starting fresh.');
+    }
+  }
+
+  const todo = usernames.filter(u => !userData[u.toLowerCase()]);
+  console.log(`  Fetching accurate follower counts for ${todo.length} users via REST...`);
+
+  let fetched = Object.keys(userData).length;
+
+  for (const username of todo) {
+    let data;
+    let resolved = false;
     for (let attempt = 1; attempt <= 5; attempt++) {
-      const query = buildGraphQLQuery(batch);
-      const response = await fetch(GRAPHQL_URL, {
-        method: 'POST',
+      const response = await fetch(`${REST_API}/${encodeURIComponent(username)}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ query })
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'Node-Fetch-Script',
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (response.status === 403 || response.status === 429) {
         const retryAfter = response.headers.get('Retry-After') || 60;
         console.log(`    Rate limited. Waiting ${retryAfter}s (attempt ${attempt}/5)...`);
-        await new Promise(r => setTimeout(r, retryAfter * 1000));
+        await sleep(retryAfter * 1000);
         continue;
+      }
+
+      if (response.status === 404) {
+        data = null;
+        resolved = true;
+        break;
       }
 
       if (!response.ok) {
         const err = await response.text();
-        throw new Error(`GraphQL API error: ${response.status} ${err}`);
+        throw new Error(`REST API error (${username}): ${response.status} ${err}`);
       }
 
-      result = await response.json();
+      data = await response.json();
+      resolved = true;
       break;
     }
 
-    if (!result) {
-      throw new Error('GraphQL rate limit exceeded after retries.');
+    if (!resolved) {
+      throw new Error(`REST rate limit exceeded after retries (${username}).`);
     }
 
-    if (result.errors && result.errors.some(e => e.type === 'RATE_LIMITED')) {
-      console.log('    GraphQL rate limit hit. Waiting 60s...');
-      await new Promise(r => setTimeout(r, 60000));
-      i -= BATCH_SIZE;
-      continue;
+    userData[username.toLowerCase()] = {
+      name: data ? (data.name || null) : null,
+      followers_count: data ? (data.followers ?? null) : null
+    };
+
+    fetched++;
+    fs.writeFileSync(progressFile, JSON.stringify(
+      Object.entries(userData).map(([u, e]) => ({ username: u, name: e.name, followers_count: e.followers_count })),
+      null, 2
+    ));
+
+    if (fetched % 50 === 0) {
+      console.log(`  Fetched ${fetched}/${usernames.length} users...`);
     }
 
-    // Monitor remaining quota
-    if (result.data && result.data.rateLimit) {
-      const { remaining, resetAt } = result.data.rateLimit;
-      const cooldownMs = Math.max(0, new Date(resetAt).getTime() - Date.now());
-      console.log(`    Remaining GraphQL points: ${remaining}`);
-      if (remaining < 500) {
-        console.log(`    Low quota (${remaining}). Waiting until reset ${resetAt} (${Math.round(cooldownMs / 1000)}s)...`);
-        await new Promise(r => setTimeout(r, cooldownMs + 5000));
-        i -= BATCH_SIZE;
-        continue;
-      }
-    }
-
-    for (const key of Object.keys(result.data || {})) {
-      const user = result.data[key];
-      if (user && user.login) {
-        userData[user.login.toLowerCase()] = {
-          name: user.name || null,
-          followers_count: user.followers ? user.followers.totalCount : null
-        };
-      }
-    }
-
-    console.log(`  Fetched user data for batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(usernames.length / BATCH_SIZE)}`);
+    await sleep(REST_DELAY_MS);
   }
+
   return userData;
 }
 
@@ -166,16 +168,17 @@ async function updateTopFollowers() {
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
   if (!GITHUB_TOKEN) {
-    console.error('Error: GITHUB_TOKEN environment variable is required for GraphQL API.');
+    console.error('Error: GITHUB_TOKEN environment variable is required for the GitHub API.');
     console.error('Set it with: export GITHUB_TOKEN=your_token');
     process.exit(1);
   }
 
   const items = await fetchAllSearchResults(GITHUB_TOKEN);
-  console.log(`Found ${items.length} users. Fetching accurate followers counts via GraphQL...`);
+  console.log(`Found ${items.length} users.`);
 
+  const progressFile = path.join(__dirname, '..', 'data', COUNTRY_CODE, '_progress.json');
   const usernames = items.map(u => u.login);
-  const userData = await fetchUserData(usernames, GITHUB_TOKEN);
+  const userData = await fetchUserData(usernames, GITHUB_TOKEN, progressFile);
 
   const formattedUsers = items.map((user, index) => {
     const data = userData[user.login.toLowerCase()] || {};
@@ -204,6 +207,7 @@ async function updateTopFollowers() {
   }
 
   fs.writeFileSync(targetFilePath, JSON.stringify(outputData, null, 2));
+  fs.unlinkSync(progressFile);
   console.log(`Saved successfully to ${targetFilePath}`);
 }
 
