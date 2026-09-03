@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SEARCH_PER_PAGE = 100;
-const REST_DELAY_MS = 2000; // ~30 req/min, safe under the 5000/hr REST quota
+const REST_DELAY_MS = 250; // ~4 req/sec, still safely under the 5000/hr core quota
 const REST_API = 'https://api.github.com/users';
 
 const COUNTRIES = JSON.parse(
