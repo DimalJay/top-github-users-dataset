@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const SEARCH_PER_PAGE = 100;
+const SEARCH_MAX_PAGES = 10; // GitHub caps search results at 1000 (10 pages of 100)
+const SEARCH_MAX_RESULTS = SEARCH_PER_PAGE * SEARCH_MAX_PAGES;
 const REST_DELAY_MS = 250;
 const REST_API = 'https://api.github.com/users';
 const GRAPHQL_API = 'https://api.github.com/graphql';
@@ -75,6 +77,11 @@ async function fetchSearchPage(page, token) {
       continue;
     }
 
+    // 422 means we've gone past the 1000-result search ceiling. Signal "no more".
+    if (response.status === 422) {
+      return null;
+    }
+
     if (!response.ok) {
       throw new Error(`Search API error: ${response.status} ${response.statusText}`);
     }
@@ -93,6 +100,10 @@ async function fetchAllSearchResults(token) {
   while (allItems.length < POOL_SIZE) {
     console.log(`  Fetching search page ${page}...`);
     const data = await fetchSearchPage(page, token);
+    if (!data) {
+      console.log(`  Reached search result ceiling (max ${SEARCH_MAX_RESULTS}); stopping.`);
+      break;
+    }
     const items = data.items || [];
 
     if (items.length === 0) break;
@@ -101,7 +112,7 @@ async function fetchAllSearchResults(token) {
     if (allItems.length >= data.total_count) break;
     page++;
 
-    if (page > Math.ceil(POOL_SIZE / SEARCH_PER_PAGE)) break;
+    if (page > Math.ceil(Math.min(POOL_SIZE, SEARCH_MAX_RESULTS) / SEARCH_PER_PAGE)) break;
   }
 
   if (allItems.length > POOL_SIZE) {
