@@ -33,20 +33,10 @@ function saveCounts(countryDir, fileName, counts) {
   writeJson(path.join(countryDir, fileName), output);
 }
 
-// Merges freshly-computed counts for a country into the root aggregate file
-// keyed by country code. Older/country data is never overwritten for other codes.
-function mergeRoot(fileName, countryCode, counts) {
-  if (Object.keys(counts).length === 0) return;
-  const rootFile = path.join(DATA_DIR, '..', fileName);
-  const root = readJsonIfExists(rootFile) || {};
-  root[countryCode] = counts;
-  writeJson(rootFile, root);
-}
-
 function ensureCountryDir(countryCode) {
   const dir = path.join(DATA_DIR, countryCode);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
-module.exports = { loadCounts, saveCounts, mergeRoot, ensureCountryDir };
+module.exports = { loadCounts, saveCounts, ensureCountryDir };
