@@ -2,6 +2,5 @@
   "LK": { "location": "Sri Lanka", "maxUsers": 500 },
   "US": { "location": "United States", "maxUsers": 500 },
   "UK": { "location": "United Kingdom", "maxUsers": 500 },
-  "IN": { "location": "India", "maxUsers": 500 },
-  "WW": { "location": null, "maxUsers": 1000 }
+  "IN": { "location": "India", "maxUsers": 500 }
 }

@@ -23,6 +23,27 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+async function coreResetWait(token) {
+  try {
+    const response = await fetch('https://api.github.com/rate_limit', {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Node-Fetch-Script',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const resetAt = (data.resources && data.resources.core && data.resources.core.reset) || 0;
+      const waitMs = Math.max(1000, (resetAt * 1000) - Date.now());
+      return waitMs;
+    }
+  } catch (e) {
+    // fall through
+  }
+  return 60000;
+}
+
 async function fetchSearchPage(page, token) {
   const locationFilter = LOCATION ? `location:"${encodeURIComponent(LOCATION)}"+` : '';
   const url = `https://api.github.com/search/users?q=${locationFilter}type:user&sort=followers&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
@@ -117,9 +138,16 @@ async function fetchUserData(usernames, token, progressFile) {
       });
 
       if (response.status === 403 || response.status === 429) {
-        const retryAfter = response.headers.get('Retry-After') || 60;
-        console.log(`    Rate limited. Waiting ${retryAfter}s (attempt ${attempt}/5)...`);
-        await sleep(retryAfter * 1000);
+        const retryAfter = response.headers.get('Retry-After');
+        if (retryAfter) {
+          console.log(`    Rate limited. Waiting ${retryAfter}s...`);
+          await sleep(retryAfter * 1000);
+          continue;
+        }
+        // No Retry-After header: likely core quota exhausted. Check real reset time.
+        const waitMs = await coreResetWait(token);
+        console.log(`    Core quota exhausted. Waiting ${Math.round(waitMs / 1000)}s until reset...`);
+        await sleep(waitMs + 5000);
         continue;
       }
 
@@ -207,7 +235,9 @@ async function updateTopFollowers() {
   }
 
   fs.writeFileSync(targetFilePath, JSON.stringify(outputData, null, 2));
-  fs.unlinkSync(progressFile);
+  if (fs.existsSync(progressFile)) {
+    fs.unlinkSync(progressFile);
+  }
   console.log(`Saved successfully to ${targetFilePath}`);
 }
 
