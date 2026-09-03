@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 
 const SEARCH_PER_PAGE = 100;
-const SEARCH_MAX_PAGES = 10; // GitHub caps a single query at 1000 results (10 pages of 100)
 const GRAPHQL_API = 'https://api.github.com/graphql';
 
 const COUNTRIES = JSON.parse(
@@ -18,21 +17,25 @@ if (!COUNTRIES[COUNTRY_CODE]) {
 
 const LOCATION = COUNTRIES[COUNTRY_CODE].location;
 const MAX_USERS = COUNTRIES[COUNTRY_CODE].maxUsers;
-const POOL_MULTIPLIER = COUNTRIES[COUNTRY_CODE].poolMultiplier || 3;
-const POOL_SIZE = Math.max(MAX_USERS, MAX_USERS * POOL_MULTIPLIER);
 
-// GraphQL node budget preservation: keep batch size modest so a single request
-// never blows through the latency/parse budget or rate limit.
+// GraphQL node budget preservation: 20 users per request keeps the point/request
+// overhead low while staying under GitHub's per-query resource limits.
 const GRAPHQL_BATCH = 20;
+const GRAPHQL_MIN_BATCH = 1;
 
-// Immutable, non-overlapping creation-date partitions. Splitting into three
-// ranges lets us exceed the 1,000-result search ceiling without 422 errors,
-// since each partition is its own cap of 1,000.
-const DATE_PARTITIONS = [
-  'created:>=2023-01-01',
-  'created:2020-01-01..2022-12-31',
-  'created:<2020-01-01'
+// Multi-pass discovery strategy. Multiple orthogonal search sweeps capture follower
+// leaders, prolific repository creators, newly-joined accounts, and star-earning
+// developers respectively, maximizing the distinct candidate pool before filtering.
+const DISCOVERY_PASSES = [
+  { name: 'followers', sort: 'followers', order: 'desc' },
+  { name: 'repositories', sort: 'repositories', order: 'desc' },
+  { name: 'joined', sort: 'joined', order: 'desc' },
+  { name: 'stars', sort: 'stars', order: 'desc' }
 ];
+// GitHub caps each Search query at 1000 results (10 pages * per_page=100). Sweeping
+// the full depth per pass maximizes distinct candidates eligible for the >1000
+// contributions + >20 followers filters before ranking to MAX_USERS.
+const PASS_MAX_PAGES = 10;
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -57,12 +60,8 @@ async function waitForRateLimitReset(response) {
   await sleep(waitSec * 1000);
 }
 
-async function fetchSearchPage(partition, page, token) {
-  const locationFilter = LOCATION ? `location:"${encodeURIComponent(LOCATION)}"+` : '';
-  // sort=repositories within a partition surfaces active, high-volume developers
-  // (far better than GitHub's fuzzy default "Best Match", which returns inactive
-  // accounts that merely match the location string).
-  const url = `https://api.github.com/search/users?q=${locationFilter}type:user+${partition}&sort=repositories&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
+async function fetchSearchQuery(queryString, token) {
+  const url = `https://api.github.com/search/users?q=${queryString}`;
 
   for (let attempt = 1; attempt <= 5; attempt++) {
     const response = await fetch(url, {
@@ -76,11 +75,6 @@ async function fetchSearchPage(partition, page, token) {
     if (response.status === 403 || response.status === 429) {
       await waitForRateLimitReset(response);
       continue;
-    }
-
-    // 422 means we've gone past the 1000-result ceiling for this partition.
-    if (response.status === 422) {
-      return null;
     }
 
     // 5xx (e.g. 502 Bad Gateway) is transient — retry with backoff instead of aborting.
@@ -100,62 +94,91 @@ async function fetchSearchPage(partition, page, token) {
   throw new Error('Search API rate limit exceeded after retries.');
 }
 
-async function fetchPartitionCandidates(partition, perPartitionTarget, token) {
-  const items = [];
-  let page = 1;
+// Step 1: Historical seed ingestion (zero API cost). Load prior ranked user
+// records keyed by lowercase login so the full identity fields are preserved.
+function loadSeedCandidates(targetDir) {
+  const seedFile = path.join(targetDir, 'top_users_contributors.json');
+  const seedMap = new Map(); // lowercase login -> record
 
-  while (items.length < perPartitionTarget) {
-    const data = await fetchSearchPage(partition, page, token);
-    if (!data) break; // exceeded this partition's 1000-result ceiling
-
-    const batch = data.items || [];
-    if (batch.length === 0) break;
-
-    items.push(...batch);
-
-    if (items.length >= data.total_count) break;
-    page++;
-
-    // Safety: stop if the next page would exceed the per-partition cap.
-    if (page > Math.ceil(Math.min(perPartitionTarget, SEARCH_MAX_PAGES * SEARCH_PER_PAGE) / SEARCH_PER_PAGE)) break;
-  }
-
-  if (items.length > perPartitionTarget) {
-    items.length = perPartitionTarget;
-  }
-
-  return items;
-}
-
-async function fetchAllSearchResults(token) {
-  const perPartitionTarget = Math.ceil(POOL_SIZE / DATE_PARTITIONS.length);
-  const seen = new Set(); // dedupe across partitions (accounts can only belong to one partition, but this is a cheap safety net)
-  const allItems = [];
-  const allLogins = [];
-
-  console.log(`Gathering candidate pool (up to ${POOL_SIZE}) for ${COUNTRY_CODE} (${LOCATION || 'Worldwide'}) across ${DATE_PARTITIONS.length} date partitions...`);
-
-  for (const partition of DATE_PARTITIONS) {
-    console.log(`  Partition: ${partition} (target ${perPartitionTarget})`);
-    const batch = await fetchPartitionCandidates(partition, perPartitionTarget, token);
-    console.log(`    Got ${batch.length} candidates.`);
-
-    for (const item of batch) {
-      const login = item.login;
-      if (!seen.has(login)) {
-        seen.add(login);
-        allItems.push(item);
-        allLogins.push(login);
+  if (fs.existsSync(seedFile)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(seedFile, 'utf-8'));
+      if (data && Array.isArray(data.users)) {
+        for (const u of data.users) {
+          if (u && u.username) {
+            seedMap.set(u.username.toLowerCase(), u);
+          }
+        }
       }
+      console.log(`Loaded ${seedMap.size} seed candidates from previous data.`);
+    } catch (e) {
+      console.log('  Could not parse previous data; starting with empty seed.');
     }
   }
 
-  // If partitions still didn't reach POOL_SIZE, trim to what we have.
-  if (allItems.length > POOL_SIZE) {
-    allItems.length = POOL_SIZE;
+  return seedMap;
+}
+
+// Build the query string (everything after `?q=`) for a single search pass + page.
+function buildPassQueryString(sort, page) {
+  const loc = LOCATION ? `location:"${encodeURIComponent(LOCATION)}"+` : '';
+  return `${loc}type:user+followers:%3E20&sort=${sort}&order=desc&per_page=${SEARCH_PER_PAGE}&page=${page}`;
+}
+
+// Merge a search response's items into the candidate map, deduping case-insensitively.
+function mergeSearchItems(candidateMap, items) {
+  let added = 0;
+  for (const item of items) {
+    const key = item.login.toLowerCase();
+    if (!candidateMap.has(key) && item.login) {
+      candidateMap.set(key, { ...item, username: item.login });
+      added++;
+    }
+  }
+  return added;
+}
+
+// Step 2: Multi-pass candidate harvesting. Sweep each discovery pass (followers,
+// repositories, joined) for up to PASS_MAX_PAGES pages, deduping into one pool.
+// `sleep(1000)` between requests keeps us comfortably under the 30 req/min Search cap.
+async function collectCandidates(seedMap, token) {
+  const candidateMap = new Map(); // lowercase login -> record/login item
+
+  for (const [login, record] of seedMap) {
+    // Normalize: output records store `username`; search items store `login`.
+    candidateMap.set(login, { ...record, login: record.login ?? record.username, username: record.login ?? record.username });
   }
 
-  return { items: allItems, usernames: allLogins };
+  let totalAdded = 0;
+  for (const pass of DISCOVERY_PASSES) {
+    let passNew = 0;
+    for (let page = 1; page <= PASS_MAX_PAGES; page++) {
+      const q = buildPassQueryString(pass.sort, page);
+      const data = await fetchSearchQuery(q, token);
+      const items = data.items || [];
+      const added = mergeSearchItems(candidateMap, items);
+      passNew += added;
+      console.log(`  Pass "${pass.name}" page ${page}: ${items.length} users (${added} new).`);
+      if (items.length < SEARCH_PER_PAGE) break; // last page
+      await sleep(1000);
+    }
+    totalAdded += passNew;
+  }
+
+  const allItems = [...candidateMap.values()];
+  console.log(`Candidate pool: ${allItems.length} unique users (${seedMap.size} seed + ${totalAdded} new).`);
+  return { items: allItems, usernames: allItems.map(c => c.login) };
+}
+
+async function collectCandidatesOrBootstrap(targetDir, token) {
+  const seedMap = loadSeedCandidates(targetDir);
+
+  // Cold run: no seed file exists. The multi-pass sweeps bootstraps the pool.
+  if (seedMap.size === 0) {
+    console.log('Cold run: no previous data found. Bootstrapping initial pool via multi-pass search...');
+  }
+
+  return collectCandidates(seedMap, token);
 }
 
 function buildContributionsQuery(usernames) {
@@ -185,8 +208,111 @@ function uLoginSafe(login) {
   return String(login).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-async function fetchContributionsBatch(usernames, token) {
+// Execute a single GraphQL request for a batch. Returns username-keyed data or
+// an object describing a resource-limit failure that the caller can react to.
+async function fetchContributionsBatchOnce(usernames, token) {
   const query = buildContributionsQuery(usernames);
+
+  let lastServerError = false;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const response = await fetch(GRAPHQL_API, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Node-Fetch-Script'
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (response.status === 401 || response.status === 403 || response.status === 429) {
+      await waitForRateLimitReset(response);
+      return { rateLimited: true };
+    }
+
+    // 5xx (e.g. 502/504) is transient — heavy batches can time out. Retry a
+    // couple of times, then split the batch (handled by the caller).
+    if (response.status >= 500 && response.status < 600) {
+      lastServerError = true;
+      const backoff = Math.min(15, 4 * attempt) * 1000;
+      console.log(`    Transient server error ${response.status}. Retrying in ${backoff / 1000}s (attempt ${attempt}/5)...`);
+      await sleep(backoff);
+      continue;
+    }
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`GraphQL API error: ${response.status} ${err}`);
+    }
+
+    const data = await response.json();
+
+    if (data.errors && data.errors.length) {
+      const resourceLimit = data.errors.filter(e => e.type === 'RESOURCE_LIMITS_EXCEEDED');
+      const other = data.errors.filter(e => e.type !== 'RESOURCE_LIMITS_EXCEEDED' && e.type !== 'NOT_FOUND');
+
+      if (resourceLimit.length) {
+        return { resourceLimit: true };
+      }
+      if (other.length) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(other.slice(0, 5))}`);
+      }
+      // NOT_FOUND entries are fine — the caller fills them with zeros.
+    }
+
+    const result = {};
+    for (let i = 0; i < usernames.length; i++) {
+      result[usernames[i].toLowerCase()] = data.data[`u${i}`] || null;
+    }
+    return { data: result };
+  }
+  if (lastServerError) {
+    return { serverError: true };
+  }
+  throw new Error('GraphQL rate limit exceeded after retries.');
+}
+
+// Fetch contributions for a batch, transparently splitting into smaller
+// sub-batches when a request exceeds resource limits or keeps timing out.
+async function fetchContributionsBatch(usernames, token) {
+  const outcome = await fetchContributionsBatchOnce(usernames, token);
+
+  if (outcome.data) {
+    return outcome.data;
+  }
+
+  // Rate limited: the request never ran, so no point re-splitting.
+  if (outcome.rateLimited) {
+    throw new Error('GraphQL rate limit exceeded.');
+  }
+
+  // Resource limits exceeded OR persistent server errors — split in half and merge.
+  if (usernames.length <= GRAPHQL_MIN_BATCH) {
+    // A single user can still exceed the budget (extreme contribution calendars).
+    // Fall back to a leaner query (drop the per-type totals, keep total only).
+    const leanOutcome = await fetchContributionsBatchLean(usernames, token);
+    return leanOutcome.data || Object.fromEntries(usernames.map(u => [u.toLowerCase(), null]));
+  }
+
+  const mid = Math.ceil(usernames.length / 2);
+  const left = await fetchContributionsBatch(usernames.slice(0, mid), token);
+  const right = await fetchContributionsBatch(usernames.slice(mid), token);
+  return { ...left, ...right };
+}
+
+// Minimal fallback used for extreme single-user resource-limit cases: request
+// only the contribution calendar total (cheapest possible query).
+async function fetchContributionsBatchLean(usernames, token) {
+  const query = `query { ${usernames.map((u, i) => `
+    u${i}: user(login: "${uLoginSafe(u)}") {
+      name
+      login
+      bio
+      company
+      location
+      followersCount: followers { totalCount }
+      contributionsCollection { contributionCalendar { totalContributions } }
+    }`).join('\n')} }`;
 
   for (let attempt = 1; attempt <= 5; attempt++) {
     const response = await fetch(GRAPHQL_API, {
@@ -203,33 +329,25 @@ async function fetchContributionsBatch(usernames, token) {
       await waitForRateLimitReset(response);
       continue;
     }
-
-    // 5xx (e.g. 502 Bad Gateway) is transient — retry with backoff instead of aborting.
     if (response.status >= 500 && response.status < 600) {
-      const backoff = Math.min(30, 5 * attempt) * 1000;
-      console.log(`    Transient server error ${response.status}. Retrying in ${backoff / 1000}s (attempt ${attempt}/5)...`);
+      const backoff = Math.min(15, 4 * attempt) * 1000;
+      console.log(`    Transient server error ${response.status} (lean). Retrying in ${backoff / 1000}s...`);
       await sleep(backoff);
       continue;
     }
-
     if (!response.ok) {
       const err = await response.text();
-      throw new Error(`GraphQL API error: ${response.status} ${err}`);
+      throw new Error(`GraphQL API error (lean): ${response.status} ${err}`);
     }
 
     const data = await response.json();
-
-    if (data.errors && data.errors.length) {
-      const nonNull = (data.errors || []).filter(e => e.type !== 'NOT_FOUND');
-      if (nonNull.length) {
-        throw new Error(`GraphQL errors: ${JSON.stringify(nonNull.slice(0, 5))}`);
-      }
-      // NOT_FOUND for a single user is fine — skip that user's data below.
+    const result = {};
+    for (let i = 0; i < usernames.length; i++) {
+      result[usernames[i].toLowerCase()] = (data.data && data.data[`u${i}`]) || null;
     }
-
-    return data.data || {};
+    return { data: result };
   }
-  throw new Error('GraphQL rate limit exceeded after retries.');
+  throw new Error('GraphQL rate limit exceeded (lean).');
 }
 
 async function fetchContributions(usernames, token, progressFile) {
@@ -264,9 +382,8 @@ async function fetchContributions(usernames, token, progressFile) {
     const result = await fetchContributionsBatch(batch, token);
 
     for (let j = 0; j < batch.length; j++) {
-      const alias = `u${j}`;
-      const node = result[alias];
       const username = batch[j].toLowerCase();
+      const node = result[username];
 
       if (!node || !node.login) {
         // User not found or renamed — record with zero contributions.
@@ -333,13 +450,12 @@ async function updateTopContributors() {
     process.exit(1);
   }
 
-  const { items, usernames } = await fetchAllSearchResults(GITHUB_TOKEN);
-  console.log(`Candidate pool: ${items.length} unique users.`);
-
   const targetDir = path.join(__dirname, '..', 'data', COUNTRY_CODE);
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
+
+  const { items, usernames } = await collectCandidatesOrBootstrap(targetDir, GITHUB_TOKEN);
 
   const progressFile = path.join(targetDir, '_progress_contributors.json');
   const contribData = await fetchContributions(usernames, GITHUB_TOKEN, progressFile);
@@ -352,9 +468,9 @@ async function updateTopContributors() {
         rank: 0,
         name: data.name ?? null,
         username: user.login,
-        avatar_url: user.avatar_url,
-        profile_url: user.html_url,
-        id: user.id,
+        avatar_url: user.avatar_url ?? null,
+        profile_url: user.profile_url ?? user.html_url ?? null,
+        id: user.id ?? null,
         total_contributions: data.total_contributions ?? 0,
         followers_count: data.followers_count ?? null,
         bio: data.bio ?? null,
@@ -362,6 +478,8 @@ async function updateTopContributors() {
         location: data.location ?? null
       };
     })
+    // Requirement: keep only users with >20 followers AND >1000 total contributions.
+    .filter((u) => (u.followers_count ?? 0) > 20 && u.total_contributions > 1000)
     .sort((a, b) => b.total_contributions - a.total_contributions)
     .slice(0, MAX_USERS)
     .map((user, index) => ({ ...user, rank: index + 1 }));
@@ -375,6 +493,10 @@ async function updateTopContributors() {
   const targetFilePath = path.join(targetDir, 'top_users_contributors.json');
 
   fs.writeFileSync(targetFilePath, JSON.stringify(outputData, null, 2));
+  // The rotating-cursor state file is no longer written by this design.
+  if (fs.existsSync(path.join(targetDir, '_cursor_state.json'))) {
+    fs.unlinkSync(path.join(targetDir, '_cursor_state.json'));
+  }
   if (fs.existsSync(progressFile)) {
     fs.unlinkSync(progressFile);
   }
