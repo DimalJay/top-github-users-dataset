@@ -3,7 +3,7 @@ const path = require('path');
 
 const BATCH_SIZE = 50;
 const SEARCH_PER_PAGE = 100;
-const TOTAL_USERS = 1000;
+const TOTAL_USERS = 500;
 const GRAPHQL_URL = 'https://api.github.com/graphql';
 
 function buildGraphQLQuery(usernames) {
