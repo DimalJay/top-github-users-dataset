@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-09-03T10:23:48.376Z",
+  "last_updated": "2026-09-03T11:19:10.559Z",
   "total_count": 500,
   "users": [
     {
@@ -9,7 +9,7 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/4921183?v=4",
       "profile_url": "https://github.com/nilbuild",
       "id": 4921183,
-      "followers_count": 40865
+      "followers_count": 40866
     },
     {
       "rank": 2,
@@ -99,7 +99,7 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/6916170?v=4",
       "profile_url": "https://github.com/segunadebayo",
       "id": 6916170,
-      "followers_count": 4406
+      "followers_count": 4405
     },
     {
       "rank": 12,
@@ -171,7 +171,7 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/3576549?v=4",
       "profile_url": "https://github.com/mvdan",
       "id": 3576549,
-      "followers_count": 2561
+      "followers_count": 2560
     },
     {
       "rank": 20,
@@ -279,7 +279,7 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/733944?v=4",
       "profile_url": "https://github.com/owainlewis",
       "id": 733944,
-      "followers_count": 1663
+      "followers_count": 1664
     },
     {
       "rank": 32,
@@ -603,7 +603,7 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/107318841?v=4",
       "profile_url": "https://github.com/megalodontia",
       "id": 107318841,
-      "followers_count": 890
+      "followers_count": 889
     },
     {
       "rank": 68,
@@ -787,6 +787,15 @@
     },
     {
       "rank": 88,
+      "name": "Emily",
+      "username": "emilybarru",
+      "avatar_url": "https://avatars.githubusercontent.com/u/86711844?v=4",
+      "profile_url": "https://github.com/emilybarru",
+      "id": 86711844,
+      "followers_count": 737
+    },
+    {
+      "rank": 89,
       "name": "Vehan Hemsara ",
       "username": "Hemsara",
       "avatar_url": "https://avatars.githubusercontent.com/u/79366878?v=4",
@@ -795,7 +804,16 @@
       "followers_count": 734
     },
     {
-      "rank": 89,
+      "rank": 90,
+      "name": "Oliver",
+      "username": "whitakeroliver",
+      "avatar_url": "https://avatars.githubusercontent.com/u/125810593?v=4",
+      "profile_url": "https://github.com/whitakeroliver",
+      "id": 125810593,
+      "followers_count": 734
+    },
+    {
+      "rank": 91,
       "name": "Alexandru Rosianu",
       "username": "aluxian",
       "avatar_url": "https://avatars.githubusercontent.com/u/1418870?v=4",
@@ -804,7 +822,7 @@
       "followers_count": 732
     },
     {
-      "rank": 90,
+      "rank": 92,
       "name": "Simon Bennetts",
       "username": "psiinon",
       "avatar_url": "https://avatars.githubusercontent.com/u/1081115?v=4",
@@ -813,16 +831,7 @@
       "followers_count": 728
     },
     {
-      "rank": 91,
-      "name": "Emily",
-      "username": "emilybarru",
-      "avatar_url": "https://avatars.githubusercontent.com/u/86711844?v=4",
-      "profile_url": "https://github.com/emilybarru",
-      "id": 86711844,
-      "followers_count": 727
-    },
-    {
-      "rank": 92,
+      "rank": 93,
       "name": "Lj V. Miranda",
       "username": "ljvmiranda921",
       "avatar_url": "https://avatars.githubusercontent.com/u/12949683?v=4",
@@ -831,22 +840,13 @@
       "followers_count": 726
     },
     {
-      "rank": 93,
-      "name": "Oliver",
-      "username": "whitakeroliver",
-      "avatar_url": "https://avatars.githubusercontent.com/u/125810593?v=4",
-      "profile_url": "https://github.com/whitakeroliver",
-      "id": 125810593,
-      "followers_count": 725
-    },
-    {
       "rank": 94,
       "name": "Bohdan Orlov",
       "username": "BohdanOrlov",
       "avatar_url": "https://avatars.githubusercontent.com/u/6740223?v=4",
       "profile_url": "https://github.com/BohdanOrlov",
       "id": 6740223,
-      "followers_count": 721
+      "followers_count": 722
     },
     {
       "rank": 95,
@@ -1408,15 +1408,6 @@
     },
     {
       "rank": 157,
-      "name": "Simeon Huang",
-      "username": "librehat",
-      "avatar_url": "https://avatars.githubusercontent.com/u/1279432?v=4",
-      "profile_url": "https://github.com/librehat",
-      "id": 1279432,
-      "followers_count": 488
-    },
-    {
-      "rank": 158,
       "name": "Kaxil Naik",
       "username": "kaxil",
       "avatar_url": "https://avatars.githubusercontent.com/u/8811558?v=4",
@@ -1425,12 +1416,21 @@
       "followers_count": 488
     },
     {
-      "rank": 159,
+      "rank": 158,
       "name": "Bence Magyar",
       "username": "bmagyar",
       "avatar_url": "https://avatars.githubusercontent.com/u/3524577?v=4",
       "profile_url": "https://github.com/bmagyar",
       "id": 3524577,
+      "followers_count": 487
+    },
+    {
+      "rank": 159,
+      "name": "Simeon Huang",
+      "username": "librehat",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1279432?v=4",
+      "profile_url": "https://github.com/librehat",
+      "id": 1279432,
       "followers_count": 487
     },
     {
@@ -2542,21 +2542,21 @@
     },
     {
       "rank": 283,
-      "name": "Scott Peat",
-      "username": "scottpeat",
-      "avatar_url": "https://avatars.githubusercontent.com/u/8313920?v=4",
-      "profile_url": "https://github.com/scottpeat",
-      "id": 8313920,
-      "followers_count": 300
-    },
-    {
-      "rank": 284,
       "name": "Marie Cruz",
       "username": "mdcruz",
       "avatar_url": "https://avatars.githubusercontent.com/u/10811379?v=4",
       "profile_url": "https://github.com/mdcruz",
       "id": 10811379,
       "followers_count": 300
+    },
+    {
+      "rank": 284,
+      "name": "Scott Peat",
+      "username": "scottpeat",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8313920?v=4",
+      "profile_url": "https://github.com/scottpeat",
+      "id": 8313920,
+      "followers_count": 299
     },
     {
       "rank": 285,
@@ -2578,20 +2578,20 @@
     },
     {
       "rank": 287,
-      "name": "Data | ML | AI Scientist  ",
-      "username": "Lua-Matlab-Python-R-J2EE",
-      "avatar_url": "https://avatars.githubusercontent.com/u/184101774?v=4",
-      "profile_url": "https://github.com/Lua-Matlab-Python-R-J2EE",
-      "id": 184101774,
-      "followers_count": 295
-    },
-    {
-      "rank": 288,
       "name": "Shaun Smith",
       "username": "darscan",
       "avatar_url": "https://avatars.githubusercontent.com/u/59090?v=4",
       "profile_url": "https://github.com/darscan",
       "id": 59090,
+      "followers_count": 294
+    },
+    {
+      "rank": 288,
+      "name": "Data | ML | AI Scientist  ",
+      "username": "Lua-Matlab-Python-R-J2EE",
+      "avatar_url": "https://avatars.githubusercontent.com/u/184101774?v=4",
+      "profile_url": "https://github.com/Lua-Matlab-Python-R-J2EE",
+      "id": 184101774,
       "followers_count": 294
     },
     {
@@ -4333,20 +4333,20 @@
     },
     {
       "rank": 482,
-      "name": "reuk",
-      "username": "reuk",
-      "avatar_url": "https://avatars.githubusercontent.com/u/3016418?v=4",
-      "profile_url": "https://github.com/reuk",
-      "id": 3016418,
-      "followers_count": 181
-    },
-    {
-      "rank": 483,
       "name": "drbaph",
       "username": "Saganaki22",
       "avatar_url": "https://avatars.githubusercontent.com/u/84208527?v=4",
       "profile_url": "https://github.com/Saganaki22",
       "id": 84208527,
+      "followers_count": 181
+    },
+    {
+      "rank": 483,
+      "name": "reuk",
+      "username": "reuk",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3016418?v=4",
+      "profile_url": "https://github.com/reuk",
+      "id": 3016418,
       "followers_count": 181
     },
     {
