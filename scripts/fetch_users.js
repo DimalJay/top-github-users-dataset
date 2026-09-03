@@ -5,12 +5,9 @@ const BATCH_SIZE = 50;
 const SEARCH_PER_PAGE = 100;
 const GRAPHQL_URL = 'https://api.github.com/graphql';
 
-const COUNTRIES = {
-  LK: { location: 'Sri Lanka', maxUsers: 500 },
-  US: { location: 'United States', maxUsers: 500 },
-  UK: { location: 'United Kingdom', maxUsers: 500 },
-  IN: { location: 'India', maxUsers: 500 }
-};
+const COUNTRIES = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'countries.json'), 'utf-8')
+);
 
 const COUNTRY_CODE = (process.argv[2] || 'LK').toUpperCase();
 

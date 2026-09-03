@@ -14,9 +14,6 @@ permissions:
 jobs:
   update-data:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        country: [LK, US, UK, IN]
 
     steps:
       - name: Checkout Repository
@@ -27,14 +24,24 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run Fetch Script
+      - name: Run Fetch Script for each country
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/fetch_users.js ${{ matrix.country }}
+        run: |
+          set -e
+          for country in LK US UK IN; do
+            echo "=== Processing $country ==="
+            node scripts/fetch_users.js "$country"
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            if ! git diff --quiet || ! git diff --staged --quiet; then
+              git commit -m "update $country top followers data [skip ci]" || true
+            fi
+          done
 
-      - name: Commit and Push if changes exist
+      - name: Push all changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --quiet && git diff --staged --quiet || (git commit -m "update ${{ matrix.country }} top followers data [skip ci]" && git push)
+          git push
